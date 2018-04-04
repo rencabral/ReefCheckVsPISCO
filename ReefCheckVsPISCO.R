@@ -1,7 +1,7 @@
-#PISCO data exploration
+#Comparing Reef Check and PISCO fish data
 #Reniel B. Cabral
-#9/20/2017
-#Project 1: professional scientists vs. reefcheck volunteers
+#4/3/2018
+#Project 1: professional scientists vs. reef check volunteers
 
 library(sp) # A package the Maptools uses to draw polygons.
 library(rgeos) # A package that Maptools uses.
@@ -18,37 +18,36 @@ library(reshape)
 
 rm(list=ls(all=TRUE))
 library(data.table)
-PATH = "H:/Jenn Project 2017" #  #Put  name of file that has both CA and OR catch here
-#dataIN = fread(paste(PATH,"PACFIN_TRAWL.csv",sep="/"),header=TRUE,sep=",")
 
+
+PATH = "H:/Jenn Project 2017" #  #Put  name of file that has both CA and OR catch here
 dataIN = fread(paste(PATH,"SBC reserve data all.txt",sep="/"))
+#dataIN = fread("H:/Jenn Project 2017/SBC reserve data all.txt")
 head(dataIN,3)
 table(dataIN$site)
 
 country.mp <- readShapeLines("H:/MPA_project/cinms_py2/cinms_line2.shp")
 
-
-maps <- readShapeLines("H:/MPA_project/MLPA_studyregion/MAN_CA_MLPA_StudyRegionBoundaries.shp")
-plot(maps, axes=TRUE, col="gray")
-
-
-
+#ok, we used this
 MPA <- readShapeSpatial("H:/MPA_project/MPAboundary/scampa.shp")
 summary(MPA)
 
-#source:ftp://ftp.dfg.ca.gov/R7_MR/MANAGEMENT/MPA/
-MPA_Calif<-readShapeSpatial("H:/Jenn Project 2017/MPA coords/MPA_CA_Existing_160301.shp", )                            
-#gps<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-#proj4string(MPA_Calif) <- gps
-#proj4string(MPA_Calif) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-#coordinates(MPA_Calif)[,1]
-#get projection information
-#summary(MPA_Calif)
-#head(MPA_Calif)
-#plot(coordinates(MPA_Calif)[,1],coordinates(MPA_Calif)[,2], axes=TRUE)
-#  "+proj=longlat +ellps=WGS84 +datum=WGS84"))
-#plot(MPA_Calif)
 
+# maps <- readShapeLines("H:/MPA_project/MLPA_studyregion/MAN_CA_MLPA_StudyRegionBoundaries.shp")
+# plot(maps, axes=TRUE, col="gray")
+# 
+# #source:ftp://ftp.dfg.ca.gov/R7_MR/MANAGEMENT/MPA/
+# MPA_Calif<-readShapeSpatial("H:/Jenn Project 2017/MPA coords/MPA_CA_Existing_160301.shp", )                            
+# #gps<-CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+# #proj4string(MPA_Calif) <- gps
+# #proj4string(MPA_Calif) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+# #coordinates(MPA_Calif)[,1]
+# #get projection information
+# #summary(MPA_Calif)
+# #head(MPA_Calif)
+# #plot(coordinates(MPA_Calif)[,1],coordinates(MPA_Calif)[,2], axes=TRUE)
+# #  "+proj=longlat +ellps=WGS84 +datum=WGS84"))
+# #plot(MPA_Calif)
 
 
 dataIN<-as.data.frame(dataIN)
@@ -66,10 +65,6 @@ plot(MPA, axes=TRUE, border="lightgray", col=c("azure","azure","bisque"))
 points(coordSAMPLE$lat_wgs84,coordSAMPLE$lon_wgs84)
 lines(country.mp, axes=TRUE, col="gray")
 
-
-
-
-
 #PLOT ReefCheck coordinates - fish channel islands
 ReefcheckFISH<-read.csv(paste(PATH,"ReefCheck/RCCA_fish_data.csv",sep="/"))
 head(ReefcheckFISH)
@@ -83,8 +78,6 @@ lines(country.mp, axes=TRUE, col="gray")
 ReefCheckLocation<-unique(ReefcheckFISH[c("Lon","Lat")])
 head(ReefCheckLocation)
 
-
-
 library(htmltools)
 ###THIS IS FOR CHECKING WHAT MPAs TO USE (i.e., if there are ReefCheck and PISCO pairs for comparison)
 leaflet() %>%
@@ -96,10 +89,25 @@ leaflet() %>%
   addCircleMarkers(data = coordSAMPLE, ~lat_wgs84, ~lon_wgs84, radius = 1, color = "blue") %>%
   addMarkers(data = ReefCheckLocation, ~Lon, ~Lat, popup = ~paste0(Lon,", ",Lat), label = ~paste0(Lon,", ",Lat))
 
+#MAKE a PUBLICATION QUALITY FIGURE
+leaflet() %>%
+  addTiles() %>%
+    addCircleMarkers(data = ReefCheckLocation, ~Lon, ~Lat, radius = 3, color = "red") %>%
+    addCircleMarkers(data = coordSAMPLE, ~lat_wgs84, ~lon_wgs84, radius = 1, color = "blue")
+
+
 ###Data cleaning, analysis
-#1. Remove all zeroes in the "Amount" column of the ReefCheck data
+#1. Remove all zeroes in the "Amount" column of the ReefCheck data. This means no observation.
 ReefcheckFISH_filter<-ReefcheckFISH[which(ReefcheckFISH$Amount>0),]
 head(ReefcheckFISH_filter,100)#ok, this is correct
+
+#check the size categories
+table(ReefcheckFISH_filter$SizeCategory)
+#Large                Medium see min_cm and max_cm                 Small 
+#6381                 23406                 56564                 17404
+
+#print the elements of "see min_cm and max_cm"
+head(ReefcheckFISH_filter %>% filter(SizeCategory=="see min_cm and max_cm"),20)
 
 #What are the species?
 table(ReefcheckFISH_filter$Species)
@@ -108,14 +116,14 @@ table(ReefcheckFISH_filter$Species)
 table(ReefcheckFISH_filter$Site)
 
 #are the sites unique per coordinate points?
-#Let us check
 checkdata <- ReefcheckFISH_filter[c("Site", "Lat", "Lon")]
-unique(checkdata) #good! Names are unique!
+reefchecksites<-unique(checkdata) #good! Names are unique!
+#save sites and coordinates
+write.csv(reefchecksites, file = "C:/Users/Ren/Documents/GitHub/ReefCheckVsPISCO/reefchecksites.csv")
 
 #plot site year
 head(ReefcheckFISH_filter)
 SiteYearTable<-ReefcheckFISH_filter %>% group_by(Site,Year,Month) %>% summarize(count=n())
-
 
 #getting the number of sampling per site per year
 SiteYearTable2<-SiteYearTable %>% group_by(Site,Year) %>% summarize(count=n())
@@ -248,6 +256,8 @@ table(ReefcheckFISH_forAnalysis2006$site,ReefcheckFISH_forAnalysis2006$Transect)
 ##Now, I can isolate Anacapa first as it is one of the Islands that I can do meaningful analysis
 #ReefcheckFISH_forAnalysisAnacapa<-ReefcheckFISH_forAnalysis[which(ReefcheckFISH_forAnalysis$Island=="Anacapa"),]
 
+
+
 #1. Isolate Anacapa (one of the Islands that I can do meaningful analysis) then plot abundance as a function of transect and 
 #Target=="T" if target species only and "N" if non-target species
 AbundanceAnacapa<- ReefcheckFISH_forAnalysis %>% filter(Island=="Anacapa", !is.na(Amount), Target=="T") %>% 
@@ -257,6 +267,8 @@ AbundanceAnacapa
 ggplot(data=AbundanceAnacapa) +
   geom_point(mapping=aes(x=Year, y=abundance, group=site, color=site))+
   geom_smooth(mapping=aes(x=Year, y=abundance, group=site, color=site))
+
+
 
 
 #2. Isolate Anacapa, arrange by transect, site, year 
@@ -282,8 +294,10 @@ ggplot(data=AbundanceAnacapaTransect) +
   geom_line(mapping=aes(x=Year, y=AbundanceMean, group=Species, color=Species))
 
 
+
+
 ###TRY for Santa Cruz
-AbundanceSCruz<- ReefcheckFISH_forAnalysis %>% filter(Island=="SCruz", !is.na(Amount), Target=="N") %>% 
+AbundanceSCruz<- ReefcheckFISH_forAnalysis %>% filter(Island=="SCruz", !is.na(Amount), Target=="T") %>% 
   group_by(Year, Transect, site) %>% summarize(abundance=sum(Amount))
 AbundanceSCruz  
 
@@ -296,10 +310,15 @@ AbundanceSRosa<- ReefcheckFISH_forAnalysis %>% filter(Island=="SRosa", !is.na(Am
   group_by(Year, Transect, site) %>% summarize(abundance=sum(Amount))
 AbundanceSRosa  
 
+#AbundanceSRosa  %>%
+
 ggplot(data=AbundanceSRosa) +
   geom_point(mapping=aes(x=Year, y=abundance, group=site, color=site))+
   geom_smooth(mapping=aes(x=Year, y=abundance, group=site, color=site))
 
+
+
+########JUMP TO PISCO BELOW
 
 
 #PLOT ReefCheck coordinates - fish westcoast
